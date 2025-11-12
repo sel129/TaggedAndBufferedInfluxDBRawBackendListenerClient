@@ -1,0 +1,1 @@
+docker run -it --rm --name metrics -v "$(pwd)":/usr/src/build -w /usr/src/build maven:3.8.6-openjdk-11 mvn clean install
