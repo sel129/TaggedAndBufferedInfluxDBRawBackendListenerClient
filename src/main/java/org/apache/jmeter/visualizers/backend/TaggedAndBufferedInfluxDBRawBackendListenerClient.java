@@ -22,7 +22,7 @@ public class TaggedAndBufferedInfluxDBRawBackendListenerClient extends InfluxDBR
     private static final Object LOCK = new Object();
     private static final Logger log = LoggingManager.getLoggerForClass();
     private final AtomicLong lastWriteTime = new AtomicLong(0);
-    private int metricCount = 0; // Variable to track the number of metrics
+    private int metricCount = 0; 
 
     @Override
     public Arguments getDefaultParameters() {
@@ -59,7 +59,7 @@ public class TaggedAndBufferedInfluxDBRawBackendListenerClient extends InfluxDBR
             long currentTime = System.currentTimeMillis();
             long batchMillis = Long.parseLong(context.getParameter("batchSeconds")) * 1000L;
             if (currentTime - lastWriteTime.get() >= batchMillis) {
-                log.info("Sending " + metricCount + " metrics to InfluxDB.");
+                log.info("Sending " + metricCount + " samples to InfluxDB.");
                 getInfluxDBMetricsManager().writeAndSendMetrics();
                 metricCount = 0;
                 lastWriteTime.set(currentTime);

@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.apache.jmeter.visualizers.backend.BackendListenerClient</groupId>
   <artifactId>TaggedAndBufferedInfluxDBRawBackendListenerClient</artifactId>
-  <version>1.0</version>
+  <version>1.0.0</version>
   <packaging>jar</packaging>
   <properties>
         <maven.compiler.source>8</maven.compiler.source>
