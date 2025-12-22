@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.Arrays;
 
 public class TaggedAndBufferedInfluxDBRawBackendListenerClient extends InfluxDBRawBackendListenerClient {
 
@@ -23,6 +24,9 @@ public class TaggedAndBufferedInfluxDBRawBackendListenerClient extends InfluxDBR
     private static final Logger log = LoggingManager.getLoggerForClass();
     private final AtomicLong lastWriteTime = new AtomicLong(0);
     private int metricCount = 0; 
+    private boolean verboseLogging = false;
+    private String includedFields = "duration,ttfb,connectTime";
+    private String includedTags = "status,transaction,threadName"; // Default included tags
 
     @Override
     public Arguments getDefaultParameters() {
@@ -32,7 +36,9 @@ public class TaggedAndBufferedInfluxDBRawBackendListenerClient extends InfluxDBR
         defaultParams.addArgument("influxdbToken", "");
         defaultParams.addArgument("measurement", "jmeter");
         defaultParams.addArgument("batchSeconds", "5");
-
+        defaultParams.addArgument("verboseLogging", "false");
+        defaultParams.addArgument("includedFields", "duration,ttfb,connectTime");
+        defaultParams.addArgument("includedTags", "status,transaction,threadName");
         return defaultParams;
     }
 
@@ -46,6 +52,9 @@ public class TaggedAndBufferedInfluxDBRawBackendListenerClient extends InfluxDBR
                 dynamicTags.put(tagName, tagValue);
             }
         });
+        verboseLogging = Boolean.parseBoolean(context.getParameter("verboseLogging", "false"));
+        includedFields = context.getParameter("includedFields", "duration,ttfb,connectTime");
+        includedTags = context.getParameter("includedTags", "status,transaction,threadName");
     }
 
     @Override
@@ -82,7 +91,7 @@ public class TaggedAndBufferedInfluxDBRawBackendListenerClient extends InfluxDBR
     private String getTags(SampleResult sampleResult) throws IllegalArgumentException {
         boolean isError = sampleResult.getErrorCount() != 0;
         String status = isError ? "ko" : "ok";
-        String label = StringUtils.strip(sampleResult.getSampleLabel(), "\" ");
+        String label = StringUtils.strip(sampleResult.getSampleLabel(), " ");
         String transaction = AbstractInfluxdbMetricsSender.tagToStringValue(label);
         String threadName = deleteWhitespace(sampleResult.getThreadName());
 
@@ -92,13 +101,31 @@ public class TaggedAndBufferedInfluxDBRawBackendListenerClient extends InfluxDBR
 
         StringBuilder tagsBuilder = new StringBuilder();
 
+        // Add dynamic tags
         for (String tagKey : dynamicTags.keySet()) {
             tagsBuilder.append(tagKey).append("=").append(dynamicTags.get(tagKey)).append(",");
         }
 
-        tagsBuilder.append("status=").append(status);
-        tagsBuilder.append(",transaction=").append(transaction);
-        tagsBuilder.append(",threadName=").append(threadName);
+        // Add included tags based on the includedTags parameter
+        List<String> includedTagsList = Arrays.asList(includedTags.split(","));
+        if (includedTagsList.contains("status")) {
+            tagsBuilder.append("status=").append(status).append(",");
+        }
+        if (includedTagsList.contains("transaction")) {
+            tagsBuilder.append("transaction=").append(transaction).append(",");
+        }
+        if (includedTagsList.contains("threadName")) {
+            tagsBuilder.append("threadName=").append(threadName).append(",");
+        }
+
+        // Remove trailing comma if present
+        if (tagsBuilder.length() > 0) {
+            tagsBuilder.setLength(tagsBuilder.length() - 1);
+        }
+
+         if (verboseLogging) {
+            log.info("Generated tags - " + tagsBuilder.toString());
+        }
 
         return tagsBuilder.toString();
     }
@@ -109,9 +136,26 @@ public class TaggedAndBufferedInfluxDBRawBackendListenerClient extends InfluxDBR
         long latency = sampleResult.getLatency();
         long connectTime = sampleResult.getConnectTime();
 
-        fieldsBuilder.append("duration=").append(duration);
-        fieldsBuilder.append(",ttfb=").append(latency);
-        fieldsBuilder.append(",connectTime=").append(connectTime);
+        List<String> includedFieldsList = Arrays.asList(this.includedFields.split(","));
+        if (includedFieldsList.contains("duration")) {
+            fieldsBuilder.append("duration=").append(duration).append(",");
+        }
+        if (includedFieldsList.contains("ttfb")) {
+            fieldsBuilder.append("ttfb=").append(latency).append(",");
+        }
+        if (includedFieldsList.contains("connectTime")) {
+            fieldsBuilder.append("connectTime=").append(connectTime).append(",");
+        }
+
+        // Remove trailing comma if present
+        if (fieldsBuilder.length() > 0) {
+            fieldsBuilder.setLength(fieldsBuilder.length() - 1);
+        }
+
+        if (verboseLogging) {
+            log.info("Generated Fields - " + fieldsBuilder.toString());
+        }
+
         return fieldsBuilder.toString();
     }
 
